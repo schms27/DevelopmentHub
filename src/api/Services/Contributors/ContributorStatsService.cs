@@ -12,6 +12,10 @@ public interface IContributorStatsService
   Task<ContributorStatsResultDto> GetContributorStatsAsync(
       ContributorStatsRequestDto request,
       CancellationToken cancellationToken = default);
+
+  Task<RepositoryCoverageResultDto> GetRepositoryCoverageAsync(
+      RepositoryCoverageRequestDto request,
+      CancellationToken cancellationToken = default);
 }
 
 public class ContributorStatsService(
@@ -80,6 +84,53 @@ public class ContributorStatsService(
     return result;
   }
 
+  public async Task<RepositoryCoverageResultDto> GetRepositoryCoverageAsync(
+      RepositoryCoverageRequestDto request,
+      CancellationToken cancellationToken = default)
+  {
+    var provider = ResolveProvider(request.Provider);
+    if (provider is null)
+      return new RepositoryCoverageResultDto { ProviderId = request.Provider, FetchedAt = DateTime.UtcNow };
+
+    var repoIds = (request.RepositoryIds ?? [])
+        .Where(id => !string.IsNullOrWhiteSpace(id))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    var contributorFilter = (request.Contributors ?? [])
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Select(c => c.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    var cacheKey = BuildCoverageCacheKey(
+        provider.ProviderId, repoIds, contributorFilter, request.Since, request.Until);
+    if (cache.TryGetValue<RepositoryCoverageResultDto>(cacheKey, out var cached) && cached is not null)
+      return cached;
+
+    var userConfig = await userConfigService.GetAsync();
+    var allRepos = await provider.ListRepositoriesAsync(userConfig, cancellationToken);
+    var selectedRepos = allRepos.Where(r => repoIds.Contains(r.Id, StringComparer.OrdinalIgnoreCase)).ToList();
+
+    var contributors = await provider.GetRepositoryCoverageAsync(
+        userConfig, selectedRepos, contributorFilter, request.Since, request.Until, cancellationToken);
+
+    logger.LogInformation(
+        "Computed repository coverage. Provider={Provider} Repositories={RepositoryCount} Contributors={ContributorCount}",
+        provider.ProviderId, selectedRepos.Count, contributors.Count);
+
+    var result = new RepositoryCoverageResultDto
+    {
+      ProviderId = provider.ProviderId,
+      Repositories = selectedRepos,
+      Contributors = contributors,
+      FetchedAt = DateTime.UtcNow,
+    };
+
+    cache.Set(cacheKey, result, StatsCacheDuration);
+    return result;
+  }
+
   private IContributorStatsProvider? ResolveProvider(string providerId)
   {
     var provider = providers.FirstOrDefault(p =>
@@ -97,5 +148,17 @@ public class ContributorStatsService(
   {
     var repos = string.Join(',', repoIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase));
     return $"contributors.stats.{providerId}.{repos}.{since?.Ticks ?? 0}.{until?.Ticks ?? 0}";
+  }
+
+  private static string BuildCoverageCacheKey(
+      string providerId,
+      IEnumerable<string> repoIds,
+      IEnumerable<string> contributors,
+      DateTime? since,
+      DateTime? until)
+  {
+    var repos = string.Join(',', repoIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase));
+    var people = string.Join(',', contributors.OrderBy(c => c, StringComparer.OrdinalIgnoreCase));
+    return $"contributors.coverage.{providerId}.{repos}.{people}.{since?.Ticks ?? 0}.{until?.Ticks ?? 0}";
   }
 }

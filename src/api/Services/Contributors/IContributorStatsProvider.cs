@@ -23,4 +23,13 @@ public interface IContributorStatsProvider
       DateTime? since,
       DateTime? until,
       CancellationToken cancellationToken = default);
+
+  /// <summary>Maps each contributor to the repositories they were active in within the timeframe.</summary>
+  Task<List<ContributorCoverageDto>> GetRepositoryCoverageAsync(
+      UserConfigDao userConfig,
+      IReadOnlyCollection<RepositoryRefDto> repositories,
+      IReadOnlyCollection<string> contributors,
+      DateTime? since,
+      DateTime? until,
+      CancellationToken cancellationToken = default);
 }

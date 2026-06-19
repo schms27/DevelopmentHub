@@ -29,4 +29,17 @@ public class ContributorsController(IContributorStatsService contributorStatsSer
     var result = await contributorStatsService.GetContributorStatsAsync(request, HttpContext.RequestAborted);
     return Ok(result);
   }
+
+  [HttpPost("repository-coverage")]
+  public async Task<ActionResult<RepositoryCoverageResultDto>> GetRepositoryCoverage(
+      [FromBody] RepositoryCoverageRequestDto request)
+  {
+    if (string.IsNullOrWhiteSpace(request.Provider))
+      return BadRequest(new { error = "'provider' is required." });
+    if (request.RepositoryIds is null || request.RepositoryIds.Count == 0)
+      return BadRequest(new { error = "At least one repository must be selected." });
+
+    var result = await contributorStatsService.GetRepositoryCoverageAsync(request, HttpContext.RequestAborted);
+    return Ok(result);
+  }
 }

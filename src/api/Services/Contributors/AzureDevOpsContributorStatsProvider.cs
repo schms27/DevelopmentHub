@@ -130,6 +130,139 @@ public class AzureDevOpsContributorStatsProvider(
     }
   }
 
+  public async Task<List<ContributorCoverageDto>> GetRepositoryCoverageAsync(
+      UserConfigDao userConfig,
+      IReadOnlyCollection<RepositoryRefDto> repositories,
+      IReadOnlyCollection<string> contributors,
+      DateTime? since,
+      DateTime? until,
+      CancellationToken cancellationToken = default)
+  {
+    var cfg = GetSettings(userConfig);
+    if (!IsConfigured(cfg) || repositories.Count == 0)
+      return [];
+
+    var client = CreateAuthorizedClient(cfg.Pat);
+
+    var filter = contributors
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Select(c => c.Trim())
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    var aggregate = new Dictionary<string, CoverageAccumulator>(StringComparer.OrdinalIgnoreCase);
+
+    var perRepo = await Task.WhenAll(repositories.Select(async repo =>
+    {
+      var prs = await FetchRepoPullRequestsAsync(client, cfg, repo.Id, since, until, cancellationToken);
+      return (repo, prs);
+    }));
+
+    foreach (var (repo, prs) in perRepo)
+      foreach (var pr in prs)
+        AccumulateCoverage(aggregate, repo, pr, filter);
+
+    var ordered = aggregate.Values
+        .OrderByDescending(c => c.TotalAuthored)
+        .ThenByDescending(c => c.TotalReviewed)
+        .ThenBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    var avatars = await Task.WhenAll(
+        ordered.Select(a => FetchAvatarDataUriAsync(client, a.AvatarUrl, cancellationToken)));
+
+    return ordered
+        .Select((a, i) => new ContributorCoverageDto
+        {
+          Login = a.Login,
+          DisplayName = a.DisplayName,
+          AvatarUrl = avatars[i],
+          TotalAuthored = a.TotalAuthored,
+          TotalReviewed = a.TotalReviewed,
+          Repositories = a.Repositories.Values
+              .OrderByDescending(r => r.AuthoredCount + r.ReviewedCount)
+              .ThenBy(r => r.RepositoryName, StringComparer.OrdinalIgnoreCase)
+              .ToList(),
+        })
+        .ToList();
+  }
+
+  private static void AccumulateCoverage(
+      Dictionary<string, CoverageAccumulator> aggregate,
+      RepositoryRefDto repo,
+      JsonNode pr,
+      HashSet<string> filter)
+  {
+    var author = pr["createdBy"];
+    if (author is not null)
+    {
+      var acc = GetOrAddCoverage(aggregate, author, filter);
+      if (acc is not null)
+      {
+        acc.TotalAuthored++;
+        GetRepoContribution(acc, repo).AuthoredCount++;
+      }
+    }
+
+    var reviewers = pr["reviewers"]?.AsArray();
+    if (reviewers is null) return;
+
+    foreach (var reviewer in reviewers)
+    {
+      if (reviewer is null) continue;
+      var vote = reviewer["vote"]?.GetValue<int>() ?? 0;
+      if (vote == 0) continue; // only count reviewers who actually voted
+
+      var acc = GetOrAddCoverage(aggregate, reviewer, filter);
+      if (acc is null) continue;
+      acc.TotalReviewed++;
+      GetRepoContribution(acc, repo).ReviewedCount++;
+    }
+  }
+
+  private static CoverageAccumulator? GetOrAddCoverage(
+      Dictionary<string, CoverageAccumulator> aggregate,
+      JsonNode identity,
+      HashSet<string> filter)
+  {
+    var uniqueName = identity["uniqueName"]?.GetValue<string>();
+    var displayName = identity["displayName"]?.GetValue<string>() ?? string.Empty;
+    var login = !string.IsNullOrWhiteSpace(uniqueName) ? uniqueName : displayName;
+
+    if (string.IsNullOrWhiteSpace(login))
+      return null;
+
+    if (filter.Count > 0 && !filter.Contains(login) && !filter.Contains(displayName))
+      return null;
+
+    if (!aggregate.TryGetValue(login, out var acc))
+    {
+      acc = new CoverageAccumulator
+      {
+        Login = login,
+        DisplayName = string.IsNullOrWhiteSpace(displayName) ? login : displayName,
+        AvatarUrl = identity["imageUrl"]?.GetValue<string>() ?? string.Empty,
+      };
+      aggregate[login] = acc;
+    }
+
+    return acc;
+  }
+
+  private static RepositoryContributionDto GetRepoContribution(CoverageAccumulator acc, RepositoryRefDto repo)
+  {
+    if (!acc.Repositories.TryGetValue(repo.Id, out var contrib))
+    {
+      contrib = new RepositoryContributionDto
+      {
+        RepositoryId = repo.Id,
+        RepositoryName = repo.Name,
+      };
+      acc.Repositories[repo.Id] = contrib;
+    }
+
+    return contrib;
+  }
+
   private async Task<List<JsonNode>> FetchRepoPullRequestsAsync(
       HttpClient client,
       AzureDevOpsProviderSettings cfg,
@@ -259,5 +392,16 @@ public class AzureDevOpsContributorStatsProvider(
     public string AvatarUrl { get; set; } = string.Empty;
     public int AuthoredCount { get; set; }
     public int ReviewedCount { get; set; }
+  }
+
+  private sealed class CoverageAccumulator
+  {
+    public string Login { get; init; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string AvatarUrl { get; set; } = string.Empty;
+    public int TotalAuthored { get; set; }
+    public int TotalReviewed { get; set; }
+    public Dictionary<string, RepositoryContributionDto> Repositories { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
   }
 }

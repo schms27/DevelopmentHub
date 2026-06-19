@@ -5,6 +5,7 @@ import {
   type ContributorStat,
   type RepositoryRef,
 } from "../../api/contributors";
+import { ContributorsTabs } from "./ContributorsTabs";
 import "./ContributorsPage.css";
 
 type Provider = "azureDevOps" | "github";
@@ -95,6 +96,7 @@ export default function ContributorsPage() {
 
   return (
     <div className="contributors-page">
+      <ContributorsTabs />
       <div className="contributors-card">
         <div className="contributors-toolbar">
           <div className="contributors-providers">

@@ -37,6 +37,37 @@ export interface ContributorStatsRequest {
   until?: string;
 }
 
+export interface RepositoryContribution {
+  repositoryId: string;
+  repositoryName: string;
+  authoredCount: number;
+  reviewedCount: number;
+}
+
+export interface ContributorCoverage {
+  login: string;
+  displayName: string;
+  avatarUrl: string;
+  totalAuthored: number;
+  totalReviewed: number;
+  repositories: RepositoryContribution[];
+}
+
+export interface RepositoryCoverageResult {
+  providerId: string;
+  repositories: RepositoryRef[];
+  contributors: ContributorCoverage[];
+  fetchedAt: string;
+}
+
+export interface RepositoryCoverageRequest {
+  provider: string;
+  repositoryIds: string[];
+  contributors: string[];
+  since?: string;
+  until?: string;
+}
+
 export const contributorsApi = {
   getRepositories: (provider: string): Promise<RepositoryRef[]> =>
     apiFetch(`/api/contributors/repositories?provider=${encodeURIComponent(provider)}`)
@@ -48,4 +79,11 @@ export const contributorsApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
     }).then((r) => handleResponse<ContributorStatsResult>(r)),
+
+  getRepositoryCoverage: (request: RepositoryCoverageRequest): Promise<RepositoryCoverageResult> =>
+    apiFetch('/api/contributors/repository-coverage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    }).then((r) => handleResponse<RepositoryCoverageResult>(r)),
 };

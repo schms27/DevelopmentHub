@@ -2,6 +2,33 @@
   padding: 28px 48px 48px;
 }
 
+.contributors-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.contributors-tab {
+  padding: 9px 18px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+
+.contributors-tab:hover {
+  color: var(--text-primary);
+}
+
+.contributors-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
 .contributors-card {
   background-color: var(--surface-alpha);
   border-radius: 20px;

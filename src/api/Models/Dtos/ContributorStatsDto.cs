@@ -36,3 +36,43 @@ public class ContributorStatsResultDto
   public List<ContributorStatDto> Contributors { get; set; } = [];
   public DateTime FetchedAt { get; set; }
 }
+/// <summary>Request body for POST /api/contributors/repository-coverage.</summary>
+public class RepositoryCoverageRequestDto
+{
+  public string Provider { get; set; } = string.Empty;
+  public List<string> RepositoryIds { get; set; } = [];
+
+  /// <summary>Logins or display names to include. Empty means every contributor found.</summary>
+  public List<string> Contributors { get; set; } = [];
+  public DateTime? Since { get; set; }
+  public DateTime? Until { get; set; }
+}
+
+/// <summary>A single contributor's pull-request activity within one repository.</summary>
+public class RepositoryContributionDto
+{
+  public string RepositoryId { get; set; } = string.Empty;
+  public string RepositoryName { get; set; } = string.Empty;
+  public int AuthoredCount { get; set; }
+  public int ReviewedCount { get; set; }
+}
+
+/// <summary>The set of repositories a single contributor was active in.</summary>
+public class ContributorCoverageDto
+{
+  public string Login { get; set; } = string.Empty;
+  public string DisplayName { get; set; } = string.Empty;
+  public string AvatarUrl { get; set; } = string.Empty;
+  public int TotalAuthored { get; set; }
+  public int TotalReviewed { get; set; }
+  public List<RepositoryContributionDto> Repositories { get; set; } = [];
+}
+
+/// <summary>Result of a repository-coverage report.</summary>
+public class RepositoryCoverageResultDto
+{
+  public string ProviderId { get; set; } = string.Empty;
+  public List<RepositoryRefDto> Repositories { get; set; } = [];
+  public List<ContributorCoverageDto> Contributors { get; set; } = [];
+  public DateTime FetchedAt { get; set; }
+}
