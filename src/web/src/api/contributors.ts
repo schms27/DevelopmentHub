@@ -42,6 +42,9 @@ export interface RepositoryContribution {
   repositoryName: string;
   authoredCount: number;
   reviewedCount: number;
+  filesAdded: number;
+  filesEdited: number;
+  filesDeleted: number;
 }
 
 export interface ContributorCoverage {
@@ -50,6 +53,9 @@ export interface ContributorCoverage {
   avatarUrl: string;
   totalAuthored: number;
   totalReviewed: number;
+  totalFilesAdded: number;
+  totalFilesEdited: number;
+  totalFilesDeleted: number;
   repositories: RepositoryContribution[];
 }
 

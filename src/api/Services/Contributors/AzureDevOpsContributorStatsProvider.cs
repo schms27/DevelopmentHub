@@ -12,6 +12,7 @@ public class AzureDevOpsContributorStatsProvider(
 {
   private const int PageSize = 100;
   private const int MaxPullRequestsPerRepo = 2000;
+  private const int MaxConcurrentDiffRequests = 8;
 
   public string ProviderId => "azureDevOps";
 
@@ -157,9 +158,21 @@ public class AzureDevOpsContributorStatsProvider(
       return (repo, prs);
     }));
 
+    // Only PRs authored by an included contributor need (relatively expensive) diff stats.
+    var authoredPrs = new List<(RepositoryRefDto Repo, JsonNode Pr)>();
     foreach (var (repo, prs) in perRepo)
       foreach (var pr in prs)
-        AccumulateCoverage(aggregate, repo, pr, filter);
+      {
+        var author = pr["createdBy"];
+        if (author is not null && IdentityPassesFilter(author, filter))
+          authoredPrs.Add((repo, pr));
+      }
+
+    var fileStats = await FetchFileChangeStatsAsync(client, cfg, authoredPrs, cancellationToken);
+
+    foreach (var (repo, prs) in perRepo)
+      foreach (var pr in prs)
+        AccumulateCoverage(aggregate, repo, pr, filter, fileStats);
 
     var ordered = aggregate.Values
         .OrderByDescending(c => c.TotalAuthored)
@@ -178,6 +191,9 @@ public class AzureDevOpsContributorStatsProvider(
           AvatarUrl = avatars[i],
           TotalAuthored = a.TotalAuthored,
           TotalReviewed = a.TotalReviewed,
+          TotalFilesAdded = a.TotalFilesAdded,
+          TotalFilesEdited = a.TotalFilesEdited,
+          TotalFilesDeleted = a.TotalFilesDeleted,
           Repositories = a.Repositories.Values
               .OrderByDescending(r => r.AuthoredCount + r.ReviewedCount)
               .ThenBy(r => r.RepositoryName, StringComparer.OrdinalIgnoreCase)
@@ -186,11 +202,75 @@ public class AzureDevOpsContributorStatsProvider(
         .ToList();
   }
 
+  private async Task<Dictionary<string, (int Added, int Edited, int Deleted)>> FetchFileChangeStatsAsync(
+      HttpClient client,
+      AzureDevOpsProviderSettings cfg,
+      IReadOnlyList<(RepositoryRefDto Repo, JsonNode Pr)> authoredPrs,
+      CancellationToken cancellationToken)
+  {
+    var results = new System.Collections.Concurrent.ConcurrentDictionary<string, (int, int, int)>();
+    using var throttle = new SemaphoreSlim(MaxConcurrentDiffRequests);
+
+    var tasks = authoredPrs.Select(async item =>
+    {
+      await throttle.WaitAsync(cancellationToken);
+      try
+      {
+        var counts = await FetchPrFileChangeCountsAsync(client, cfg, item.Repo.Id, item.Pr, cancellationToken);
+        results[PrKey(item.Repo.Id, item.Pr)] = counts;
+      }
+      finally
+      {
+        throttle.Release();
+      }
+    });
+
+    await Task.WhenAll(tasks);
+    return results.ToDictionary(kv => kv.Key, kv => kv.Value);
+  }
+
+  private async Task<(int Added, int Edited, int Deleted)> FetchPrFileChangeCountsAsync(
+      HttpClient client,
+      AzureDevOpsProviderSettings cfg,
+      string repoId,
+      JsonNode pr,
+      CancellationToken cancellationToken)
+  {
+    try
+    {
+      var baseCommit = pr["lastMergeTargetCommit"]?["commitId"]?.GetValue<string>();
+      var headCommit = pr["lastMergeSourceCommit"]?["commitId"]?.GetValue<string>();
+      if (string.IsNullOrEmpty(baseCommit) || string.IsNullOrEmpty(headCommit))
+        return (0, 0, 0);
+
+      var url =
+          $"https://dev.azure.com/{cfg.Organization}/{cfg.Project}/_apis/git/repositories/{repoId}/diffs/commits" +
+          $"?baseVersion={baseCommit}&baseVersionType=commit&targetVersion={headCommit}&targetVersionType=commit&api-version=7.1";
+
+      var response = await client.GetStringAsync(url, cancellationToken);
+      var changeCounts = JsonNode.Parse(response)?["changeCounts"];
+      if (changeCounts is null)
+        return (0, 0, 0);
+
+      int Count(string key) => changeCounts[key]?.GetValue<int>() ?? 0;
+      return (Count("Add"), Count("Edit"), Count("Delete"));
+    }
+    catch (Exception ex)
+    {
+      logger.LogDebug(ex, "Failed to fetch PR file change counts for repository {RepoId}", repoId);
+      return (0, 0, 0);
+    }
+  }
+
+  private static string PrKey(string repoId, JsonNode pr) =>
+      $"{repoId}/{pr["pullRequestId"]?.GetValue<int>() ?? 0}";
+
   private static void AccumulateCoverage(
       Dictionary<string, CoverageAccumulator> aggregate,
       RepositoryRefDto repo,
       JsonNode pr,
-      HashSet<string> filter)
+      HashSet<string> filter,
+      IReadOnlyDictionary<string, (int Added, int Edited, int Deleted)> fileStats)
   {
     var author = pr["createdBy"];
     if (author is not null)
@@ -199,7 +279,18 @@ public class AzureDevOpsContributorStatsProvider(
       if (acc is not null)
       {
         acc.TotalAuthored++;
-        GetRepoContribution(acc, repo).AuthoredCount++;
+        var contrib = GetRepoContribution(acc, repo);
+        contrib.AuthoredCount++;
+
+        if (fileStats.TryGetValue(PrKey(repo.Id, pr), out var counts))
+        {
+          contrib.FilesAdded += counts.Added;
+          contrib.FilesEdited += counts.Edited;
+          contrib.FilesDeleted += counts.Deleted;
+          acc.TotalFilesAdded += counts.Added;
+          acc.TotalFilesEdited += counts.Edited;
+          acc.TotalFilesDeleted += counts.Deleted;
+        }
       }
     }
 
@@ -217,6 +308,15 @@ public class AzureDevOpsContributorStatsProvider(
       acc.TotalReviewed++;
       GetRepoContribution(acc, repo).ReviewedCount++;
     }
+  }
+
+  private static bool IdentityPassesFilter(JsonNode identity, HashSet<string> filter)
+  {
+    if (filter.Count == 0) return true;
+    var uniqueName = identity["uniqueName"]?.GetValue<string>();
+    var displayName = identity["displayName"]?.GetValue<string>() ?? string.Empty;
+    var login = !string.IsNullOrWhiteSpace(uniqueName) ? uniqueName : displayName;
+    return filter.Contains(login) || filter.Contains(displayName);
   }
 
   private static CoverageAccumulator? GetOrAddCoverage(
@@ -401,6 +501,9 @@ public class AzureDevOpsContributorStatsProvider(
     public string AvatarUrl { get; set; } = string.Empty;
     public int TotalAuthored { get; set; }
     public int TotalReviewed { get; set; }
+    public int TotalFilesAdded { get; set; }
+    public int TotalFilesEdited { get; set; }
+    public int TotalFilesDeleted { get; set; }
     public Dictionary<string, RepositoryContributionDto> Repositories { get; } =
         new(StringComparer.OrdinalIgnoreCase);
   }

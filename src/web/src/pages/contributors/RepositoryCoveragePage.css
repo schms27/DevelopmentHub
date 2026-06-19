@@ -177,6 +177,17 @@
   border: 1px solid var(--border);
 }
 
+.coverage-chip--files {
+  background: var(--surface-alpha);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.coverage-badge--files {
+  font-variant-numeric: tabular-nums;
+}
+
 .coverage-results-wrap {
   display: flex;
   flex-direction: column;

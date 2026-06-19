@@ -18,6 +18,9 @@ interface CombinedRepoContributor {
   avatarUrl: string;
   authoredCount: number;
   reviewedCount: number;
+  filesAdded: number;
+  filesEdited: number;
+  filesDeleted: number;
 }
 
 interface CombinedRepo {
@@ -25,6 +28,9 @@ interface CombinedRepo {
   repositoryName: string;
   totalAuthored: number;
   totalReviewed: number;
+  filesAdded: number;
+  filesEdited: number;
+  filesDeleted: number;
   contributors: CombinedRepoContributor[];
 }
 
@@ -97,18 +103,27 @@ export default function RepositoryCoveragePage() {
             repositoryName: r.repositoryName,
             totalAuthored: 0,
             totalReviewed: 0,
+            filesAdded: 0,
+            filesEdited: 0,
+            filesDeleted: 0,
             contributors: [],
           };
           map.set(r.repositoryId, entry);
         }
         entry.totalAuthored += r.authoredCount;
         entry.totalReviewed += r.reviewedCount;
+        entry.filesAdded += r.filesAdded;
+        entry.filesEdited += r.filesEdited;
+        entry.filesDeleted += r.filesDeleted;
         entry.contributors.push({
           login: c.login,
           displayName: c.displayName,
           avatarUrl: c.avatarUrl,
           authoredCount: r.authoredCount,
           reviewedCount: r.reviewedCount,
+          filesAdded: r.filesAdded,
+          filesEdited: r.filesEdited,
+          filesDeleted: r.filesDeleted,
         });
       }
     }
@@ -348,6 +363,47 @@ export default function RepositoryCoveragePage() {
   );
 }
 
+function FilesChip({
+  added,
+  edited,
+  deleted,
+}: {
+  added: number;
+  edited: number;
+  deleted: number;
+}) {
+  if (added + edited + deleted === 0) return null;
+  return (
+    <span
+      className="coverage-chip coverage-chip--files"
+      title={`Files: ${added} added, ${edited} edited, ${deleted} deleted`}
+    >
+      +{added} ~{edited} -{deleted}
+    </span>
+  );
+}
+
+function FilesBadge({
+  added,
+  edited,
+  deleted,
+}: {
+  added: number;
+  edited: number;
+  deleted: number;
+}) {
+  const total = added + edited + deleted;
+  if (total === 0) return null;
+  return (
+    <span
+      className="coverage-badge coverage-badge--files"
+      title={`Files: ${added} added, ${edited} edited, ${deleted} deleted`}
+    >
+      {total} files
+    </span>
+  );
+}
+
 function CombinedView({
   repositories,
   contributorCount,
@@ -373,6 +429,11 @@ function CombinedView({
               </span>
               <span className="coverage-badge">{r.totalAuthored} authored</span>
               <span className="coverage-badge">{r.totalReviewed} reviewed</span>
+              <FilesBadge
+                added={r.filesAdded}
+                edited={r.filesEdited}
+                deleted={r.filesDeleted}
+              />
             </div>
           </header>
           <ul className="coverage-combined-people">
@@ -410,6 +471,11 @@ function CombinedView({
                       {p.reviewedCount} reviewed
                     </span>
                   )}
+                  <FilesChip
+                    added={p.filesAdded}
+                    edited={p.filesEdited}
+                    deleted={p.filesDeleted}
+                  />
                 </span>
               </li>
             ))}
@@ -455,6 +521,11 @@ function CoverageCard({ contributor }: { contributor: ContributorCoverage }) {
           <span className="coverage-badge">
             {contributor.totalReviewed} reviewed
           </span>
+          <FilesBadge
+            added={contributor.totalFilesAdded}
+            edited={contributor.totalFilesEdited}
+            deleted={contributor.totalFilesDeleted}
+          />
         </div>
       </header>
       <ul className="coverage-repo-list">
@@ -474,6 +545,11 @@ function CoverageCard({ contributor }: { contributor: ContributorCoverage }) {
                   {r.reviewedCount} reviewed
                 </span>
               )}
+              <FilesChip
+                added={r.filesAdded}
+                edited={r.filesEdited}
+                deleted={r.filesDeleted}
+              />
             </span>
           </li>
         ))}

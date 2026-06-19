@@ -55,6 +55,15 @@ public class RepositoryContributionDto
   public string RepositoryName { get; set; } = string.Empty;
   public int AuthoredCount { get; set; }
   public int ReviewedCount { get; set; }
+
+  /// <summary>Files added across the contributor's authored PRs in this repository.</summary>
+  public int FilesAdded { get; set; }
+
+  /// <summary>Files edited across the contributor's authored PRs in this repository.</summary>
+  public int FilesEdited { get; set; }
+
+  /// <summary>Files deleted across the contributor's authored PRs in this repository.</summary>
+  public int FilesDeleted { get; set; }
 }
 
 /// <summary>The set of repositories a single contributor was active in.</summary>
@@ -65,6 +74,9 @@ public class ContributorCoverageDto
   public string AvatarUrl { get; set; } = string.Empty;
   public int TotalAuthored { get; set; }
   public int TotalReviewed { get; set; }
+  public int TotalFilesAdded { get; set; }
+  public int TotalFilesEdited { get; set; }
+  public int TotalFilesDeleted { get; set; }
   public List<RepositoryContributionDto> Repositories { get; set; } = [];
 }
 
