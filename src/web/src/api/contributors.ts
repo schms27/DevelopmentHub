@@ -1,0 +1,51 @@
+import { apiFetch } from './client';
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText);
+    throw new Error(body || `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export interface RepositoryRef {
+  providerId: string;
+  id: string;
+  name: string;
+  fullName: string;
+}
+
+export interface ContributorStat {
+  login: string;
+  displayName: string;
+  avatarUrl: string;
+  authoredCount: number;
+  reviewedCount: number;
+}
+
+export interface ContributorStatsResult {
+  providerId: string;
+  repositories: RepositoryRef[];
+  contributors: ContributorStat[];
+  fetchedAt: string;
+}
+
+export interface ContributorStatsRequest {
+  provider: string;
+  repositoryIds: string[];
+  since?: string;
+  until?: string;
+}
+
+export const contributorsApi = {
+  getRepositories: (provider: string): Promise<RepositoryRef[]> =>
+    apiFetch(`/api/contributors/repositories?provider=${encodeURIComponent(provider)}`)
+      .then((r) => handleResponse<RepositoryRef[]>(r)),
+
+  getStats: (request: ContributorStatsRequest): Promise<ContributorStatsResult> =>
+    apiFetch('/api/contributors/stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    }).then((r) => handleResponse<ContributorStatsResult>(r)),
+};
