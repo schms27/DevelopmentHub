@@ -13,6 +13,35 @@ from [Conventional Commits](https://www.conventionalcommits.org/).
 
 ---
 
+## [1.3.0](https://github.com/schms27/DevelopmentHub/compare/v1.2.0...v1.3.0) (2026-09-04)
+
+
+### Features
+
+* add executors for downloading Azure DevOps and GitHub release assets ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* add inline clear button to search inputs and SDK SearchInput cmponent ([#41](https://github.com/schms27/DevelopmentHub/issues/41)) ([310d050](https://github.com/schms27/DevelopmentHub/commit/310d05051bf0e0ba0f4e263a12d762ee6409fea2))
+* add JSON patching functionality for modifying JSON files ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* create DevelopmentHub.Workflow project with .NET 9.0 SDK ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* create executors for restarting Windows services and running installers ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* create workflow definition and input models for structured workflow execution ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* define interfaces and classes for workflow step execution and context management ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* implement file download and archive extraction executors ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* implement provider settings management for credential handling in workflow steps ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* implement Vite configuration for React with Tailwind CSS support ([1a5feaa](https://github.com/schms27/DevelopmentHub/commit/1a5feaaa4f916d02360d2c08da8b35e6df5e12f1))
+* migrate versioning and changelog to release-please ([f6f32e6](https://github.com/schms27/DevelopmentHub/commit/f6f32e6133f0dcd837b91083027450a93408f2bf))
+* migrate versioning and changelog to release-please ([3d0f643](https://github.com/schms27/DevelopmentHub/commit/3d0f64349941b50d7d14b6f80802b23ff358942e))
+* migrate versioning and changelog to release-please ([#44](https://github.com/schms27/DevelopmentHub/issues/44)) ([fb52b88](https://github.com/schms27/DevelopmentHub/commit/fb52b886cdc063b10c05c46c38bb74faff37c347))
+* show application version in settings ([#55](https://github.com/schms27/DevelopmentHub/issues/55)) ([958bac0](https://github.com/schms27/DevelopmentHub/commit/958bac015093577e9c341aa6aaa51616a4100342))
+* Use az cli (if available) for faster downloads from azure devops ([#46](https://github.com/schms27/DevelopmentHub/issues/46)) ([7c99f2d](https://github.com/schms27/DevelopmentHub/commit/7c99f2da8a529332955ebb1ee39d8e406a895993))
+
+
+### Bug Fixes
+
+* make plugin labels and status colours theme-aware ([#54](https://github.com/schms27/DevelopmentHub/issues/54)) ([dabfeeb](https://github.com/schms27/DevelopmentHub/commit/dabfeeb8bb6dc5c7948ce728151a0e89c4224829))
+* report why a plugin frontend bundle failed to load ([#56](https://github.com/schms27/DevelopmentHub/issues/56)) ([f070591](https://github.com/schms27/DevelopmentHub/commit/f0705916a9ac04c257b8d1d140b0088ce0b9d693))
+* trigger release please after config fix ([#47](https://github.com/schms27/DevelopmentHub/issues/47)) ([e2a7830](https://github.com/schms27/DevelopmentHub/commit/e2a783087f308721322706e894d4ea451d3680f1))
+* upload release assets from release-please run ([#50](https://github.com/schms27/DevelopmentHub/issues/50)) ([43bf4ad](https://github.com/schms27/DevelopmentHub/commit/43bf4ad9c7385ee87a0b9467bf37120f29581f40))
+
 ## [1.2.0](https://github.com/SeBaconStrip/DevelopmentHub/compare/v1.1.1...v1.2.0) (2026-08-27)
 
 
