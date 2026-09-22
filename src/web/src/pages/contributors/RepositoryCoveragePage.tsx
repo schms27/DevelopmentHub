@@ -36,7 +36,7 @@ interface CombinedRepo {
 
 const PROVIDERS: { id: Provider; label: string; disabled?: boolean }[] = [
   { id: "azureDevOps", label: "Azure DevOps" },
-  { id: "github", label: "GitHub", disabled: true },
+  { id: "github", label: "GitHub" },
 ];
 
 function parseContributors(raw: string): string[] {

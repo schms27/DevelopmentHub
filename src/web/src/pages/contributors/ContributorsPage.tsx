@@ -13,7 +13,7 @@ type SortKey = "authored" | "reviewed" | "name";
 
 const PROVIDERS: { id: Provider; label: string; disabled?: boolean }[] = [
   { id: "azureDevOps", label: "Azure DevOps" },
-  { id: "github", label: "GitHub", disabled: true },
+  { id: "github", label: "GitHub" },
 ];
 
 export default function ContributorsPage() {
